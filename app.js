@@ -46,23 +46,38 @@ app.post("/register",async (req, res) => {
         } )
     })
 })
+app.get('/profile', isLoggedIn,async (req,res) =>{
+    let user = await userModel.findOne({email: req.user.email})
+    res.render("profile", {user})
+})
 
-app.post("/login",async (req, res) => {
+
+app.post("/login", async (req, res) => {
     let {email , password} = req.body
 
     let user = await userModel.findOne({email})
     if(!user) return res.status(500).send("something went wrong")
 
     bcrypt.compare(password, user.password, (err, result) => {
-        if(result) res.status(200).send("you can login")
+        if(result){
+            let token = jwt.sign({email, userid: user._id}, "shhh")
+            res.cookie("token", token)
+            res.status(200).redirect("/profile")
+        } 
         else  res.redirect("/login")
     })
 
 })
 
-function isLoggedIn(req, res, next){
-    if(req.cookies.token === "") res.send("you must be logged in")
-    next()
+
+function isLoggedIn(req, res, next){//it is a protected route that we can use as a middleware in other routes
+    if(req.cookies.token === "") res.redirect("/login")
+    else{
+         let data = jwt.verify(req.cookies.token, "shhh")
+         req.user = data
+        next()
+
+    }
 }
 
 app.listen(3000)
