@@ -22,7 +22,38 @@ app.get("/login", (req,res) => {
 app.get("/logout", (req, res)=>{
     res.cookie("token", "")
     res.redirect("/login")
+}) 
+
+app.get('/profile', isLoggedIn,async (req,res) =>{
+    let user = await userModel.findOne({email: req.user.email}).populate("posts")
+    res.render("profile", {user})
 })
+
+app.get('/like/:id', isLoggedIn,async (req,res) =>{
+    let post = await postModel.findOne({_id: req.params.id}).populate("user")
+
+    if(post.likes.indexOf(req.user.userid) === -1){
+        
+        post.likes.push(req.user.userid)
+    }
+    else{
+        post.likes.splice(post.likes.indexOf(req.user.userid), 1)
+    }
+
+     await post.save()
+     res.redirect("/profile")
+})
+
+app.get('/edit/:id', isLoggedIn,async (req,res) =>{
+    let post = await postModel.findOne({_id: req.params.id}).populate("user")
+    res.render("edit", {post})
+})
+
+app.post('/update/:id', isLoggedIn, async (req, res )=> {
+    let post = await postModel.findOneAndUpdate({_id: req.params.id}, {content: req.body.content})
+    res.redirect("/profile")
+})
+
 
 app.post("/register",async (req, res) => {
     let {email , password, username, age, name} = req.body
@@ -45,10 +76,6 @@ app.post("/register",async (req, res) => {
             res.send("registered")
         } )
     })
-})
-app.get('/profile', isLoggedIn,async (req,res) =>{
-    let user = await userModel.findOne({email: req.user.email}).populate("posts")
-    res.render("profile", {user})
 })
 
 
@@ -86,7 +113,7 @@ app.post("/login", async (req, res) => {
 })
 
 
-function isLoggedIn(req, res, next){//it is a protected route that we can use as a middleware in other routes
+function isLoggedIn(req, res, next){//it is a protected route that we can use it as a middleware in other routes
     if(req.cookies.token === "") res.redirect("/login")
     else{
          let data = jwt.verify(req.cookies.token, "shhh")
